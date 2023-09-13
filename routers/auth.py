@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Header, HTTPException
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException
 from fastapi.responses import JSONResponse
 from jose import jwt
 
@@ -14,7 +15,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Token expiration time in minutes
 
 
-
 @router.post("/set-cookie/")
 def SetCookie():
     response = JSONResponse(content="Cookie set successfully.")
@@ -26,6 +26,12 @@ def SetCookie():
 def GetCookie(cookie: str = Cookie(default=None)):
     return {"cookie": cookie}
 
+#set headers
+@router.post("/set-headers/")
+def SetHeaders():
+    response = JSONResponse(content="Setting headers successfully.")
+    response.headers["X-Custom-Header"] = "This is custom header"
+    return response
 
 #getting headers
 @router.get("/get-headers/")
@@ -61,3 +67,28 @@ async def read_item(item_id: int):
     if item_id == 0:
         raise HTTPException(status_code=400, detail="Item ID must be greater than 0")
     return {"item_id": item_id}
+
+
+async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+@router.get("/items/")
+async def read_items(commons: Annotated[dict, Depends(common_parameters)]):
+    return commons
+
+
+
+
+class Dependency:
+    def __init__(self, name: str, age:int):
+        self.name = name
+        self.age = age
+    
+    def __str__(self):
+        return {"name": self.name, "age":self.age}
+
+
+@router.get("/get-user/")
+async def get_user(dep: Dependency = Depends(Dependency)):
+    return dep

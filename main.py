@@ -1,36 +1,43 @@
-# from fastapi import Cookie, FastAPI, Header, Response
-
-# app = FastAPI()
-
-
-# @app.post("/set-cookie/")
-# def SetCookie(response: Response):
-#     response.set_cookie(key="fakesession", value="fake-cookie-session-value")
-#     return {"message": "Fake cookie has been set."}
-
-
-# @app.get("/get-cookie/")
-# def GetCookie(fakesession: str | None = Cookie(None)):
-#     return {"fake-cookie": fakesession}
-
-
-# @app.get("/get-headers/")
-# def GetHeader(accept_encoding: str | None = Header(None), sec_ch_ua: str | None = Header(None)):
-#     return {
-#         "Accept-Encoding": accept_encoding,
-#         "Sec-Ch-Ua": sec_ch_ua
-#     }
-
-
 from fastapi import FastAPI
+from fastapi.exceptions import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from middlewares import MyMiddleware, middleware_one
 from routers import auth, protected
 
 app = FastAPI()
 
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail},
+    )
+
+origins = [
+    "http://localhost:8000",
+    "http://localhost:5000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.add_middleware(
+    MyMiddleware
+)
+app.middleware("http")(middleware_one)
+
 app.include_router(auth.router)
 app.include_router(protected.router)
+app.add_exception_handler(HTTPException, http_exception_handler)
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
